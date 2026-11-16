@@ -287,19 +287,24 @@ fun SessionScreen(d: Data, nav: Nav) {
     val p = pl.p
     var ask by remember { mutableStateOf(false) }
     var after by remember { mutableIntStateOf(0) }
-    val scope = rememberCoroutineScope()
     val view = LocalView.current
     DisposableEffect(Unit) { view.keepScreenOn = true; onDispose { view.keepScreenOn = false } }
     BackHandler { if (Player.done) {} else ask = true }
+    var saving by remember { mutableStateOf(false) }
     fun save() {
-        val secs = if (Player.done) Player.t.toInt() else Player.t.toInt()
+        if (saving) return
+        val secs = Player.t.toInt()
         val holds = Player.holds.toList(); val notes = Player.notes.toList(); val noted = HashMap(Player.noted)
         val said = saidList.toList(); saidList.clear()
         val bpm = if (pl.belly) BreathSensor.average() else 0.0
-        Player.stop(ctx)
-        if (secs < 10 && p.id != "bell") { nav.pop(); return }
-        scope.launch {
-            val (id, out) = c.finish(Done(p.id, System.currentTimeMillis() - secs * 1000L, secs, Player.round + 1, holds, bpm, pl.before, after, notes, said, noted, pl.course, pl.bell))
+        val round = Player.round + 1
+        if (secs < 10 && p.id != "bell") { Player.stop(ctx); nav.pop(); return }
+        saving = true
+        // Saved in the app's scope, and the player is let go only after: stopping it clears the plan, which takes this
+        // screen (and any coroutine of its own) away, and the session was lost half-written.
+        c.scope.launch {
+            val (id, out) = c.finish(Done(p.id, System.currentTimeMillis() - secs * 1000L, secs, round, holds, bpm, pl.before, after, notes, said, noted, pl.course, pl.bell))
+            Player.stop(ctx)
             nav.replace(Screen.Result(id, out))
         }
     }

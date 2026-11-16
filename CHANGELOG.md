@@ -6,6 +6,17 @@ line "<!-- tg", then 2-4 short lines in Russian for users (what is new, what is 
 then close it like any HTML comment. The release notes carry it, and the chat bot posts those lines.
 -->
 
+## [1.1.1] - 2026-11-16
+
+### Fixed
+- **Practices were not saved.** Pressing «Save» after a practice closed the session before it was written down, so the minutes, the calm for the pets, the shells and the tide were lost. Now the practice is saved first and the result screen opens as it should.
+
+<!-- tg
+Исправили важную ошибку: практики не сохранялись после нажатия «Сохранить» – минуты, ракушки и рост питомцев терялись.
+Теперь всё засчитывается, а после практики открывается экран итогов.
+Практики, сделанные до обновления, к сожалению, вернуть не получится.
+-->
+
 ## [1.1.0] - 2026-11-16
 
 ### Added
