@@ -2,6 +2,7 @@ package app.puffling
 
 import android.app.Application
 import android.content.Context
+import app.puffling.data.Backup
 import app.puffling.data.Bottle
 import app.puffling.data.Db
 import app.puffling.data.Outside
@@ -151,6 +152,13 @@ class AppContainer(context: Context) {
         } else if (s.digested == 0L) settings.update { it.copy(digested = t - 1) }
         val week = weekStart(t)
         if (settings.now().questWeek != week) settings.update { it.copy(questWeek = week, quests = Quests.deal(week), questsDone = emptySet()) }
+        Bells.schedule(app, settings.now())
+    }
+
+    /** A backup takes the place of everything here: the own practices, the forms of address and the bell follow it. */
+    suspend fun restore(e: Backup.Everything) = lock.withLock {
+        Backup.restore(db, settings, e)
+        loadOwn(); Gender.fem = settings.now().fem
         Bells.schedule(app, settings.now())
     }
 

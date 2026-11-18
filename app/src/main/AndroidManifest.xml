@@ -8,7 +8,7 @@
     <!-- A practice keeps time and plays its bells with the screen off. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-    <!-- After a restart the next bell is set again. -->
+    <!-- After a restart (and an update, and a change of the clock) the next bell is set again. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- The real weather and sky in the round window: only the town's coordinates are sent. -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -52,6 +52,9 @@
         <receiver android:name=".work.BootReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
             </intent-filter>
         </receiver>
 

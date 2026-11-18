@@ -15,6 +15,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.media.AudioAttributes
 import android.media.AudioManager
 import android.os.Build
 import android.os.IBinder
@@ -160,16 +161,24 @@ object Bells {
             NotificationChannel(CH, tr("Колокольчик", "The bell"), NotificationManager.IMPORTANCE_DEFAULT).apply { setSound(null, null); enableVibration(false); setShowBadge(false) })
     }
 
-    /** Rings now unless a call is on; writes the bell down and offers the three breaths. */
-    fun ring(ctx: Context, s: Settings, id: Long) {
+    /**
+     * Rings now unless a call is on, and offers the three breaths. The bell goes on the notification volume, like any
+     * other app's: on the media volume, which many keep at zero, it was never heard. Where that volume is down, it buzzes.
+     * Returns how long the sound lasts, so the receiver can keep the app awake till it ends.
+     */
+    fun ring(ctx: Context, s: Settings, id: Long): Long {
         val audio = ctx.getSystemService(AudioManager::class.java)
         val inCall = audio.mode == AudioManager.MODE_IN_CALL || audio.mode == AudioManager.MODE_IN_COMMUNICATION
-        if (inCall) return
+        if (inCall) return 0
+        val buzz = { runCatching { ctx.getSystemService(Vibrator::class.java)?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 60, 400, 60), -1)) } }
+        var ms = 0L
         when (audio.ringerMode) {
-            AudioManager.RINGER_MODE_NORMAL -> Synth.ring(s.bellKind, s.volume.coerceAtLeast(.35f))
-            AudioManager.RINGER_MODE_VIBRATE -> runCatching { ctx.getSystemService(Vibrator::class.java)?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 60, 400, 60), -1)) }
+            AudioManager.RINGER_MODE_NORMAL -> if (audio.getStreamVolume(AudioManager.STREAM_NOTIFICATION) > 0) {
+                Synth.ring(s.bellKind, s.volume.coerceAtLeast(.5f), AudioAttributes.USAGE_NOTIFICATION_EVENT); ms = Synth.ringMs(s.bellKind)
+            } else buzz()
+            AudioManager.RINGER_MODE_VIBRATE -> buzz()
         }
-        if (!canPost(ctx)) return
+        if (!canPost(ctx)) return ms
         channel(ctx)
         val open = PendingIntent.getActivity(ctx, 5, Intent(ctx, MainActivity::class.java).putExtra("bell", id).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
@@ -179,6 +188,7 @@ object Bells {
             .setContentText(lines[(id % lines.size).toInt()]).setAutoCancel(true).setContentIntent(open).setTimeoutAfter(20 * 60_000L)
             .addAction(0, tr("Три вдоха", "Three breaths"), open).build()
         try { NotificationManagerCompat.from(ctx).notify(NOTE, n) } catch (_: SecurityException) { }
+        return ms
     }
 }
 
@@ -189,21 +199,22 @@ class BellReceiver : BroadcastReceiver() {
         CoroutineScope(Dispatchers.Default).launch {
             runCatching {
                 val s = c.settings.now()
+                Bells.schedule(context, s)
                 if (s.bells && !app.puffling.work.Player.let { it.plan != null && !it.done }) {
                     val id = c.dao.insert(Bell(at = System.currentTimeMillis()))
-                    Bells.ring(context, s, id)
+                    // the app is kept awake till the bell has sounded out, or a frozen app cuts it short
+                    kotlinx.coroutines.delay((Bells.ring(context, s, id) + 1500).coerceAtMost(8500))
                 }
-                Bells.schedule(context, s)
             }
-            kotlinx.coroutines.delay(6000)
             res.finish()
         }
     }
 }
 
-/** After a restart the next bell is set again. */
+/** After a restart, an update of the app or a change of the clock the next bell is set again: each of them drops it. */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action !in setOf(Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED, Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED)) return
         val res = goAsync()
         CoroutineScope(Dispatchers.Default).launch { runCatching { Bells.schedule(context, context.container.settings.now()) }; res.finish() }
     }

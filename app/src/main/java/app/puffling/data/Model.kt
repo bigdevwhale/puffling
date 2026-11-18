@@ -177,6 +177,17 @@ interface Dao0 {
     @Query("DELETE FROM Pet") suspend fun clearPets()
     @Query("DELETE FROM Bottle") suspend fun clearBottles()
     @Query("DELETE FROM Bell") suspend fun clearBells()
+    @Query("DELETE FROM OwnPractice") suspend fun clearOwn()
+    @Query("DELETE FROM OwnAff") suspend fun clearAffs()
+    @Query("DELETE FROM Entry") suspend fun clearEntries()
+
+    // a backup coming back: the rows keep their ids
+    @Insert suspend fun insertSessions(l: List<Session>)
+    @Insert suspend fun insertOwn(l: List<OwnPractice>)
+    @Insert suspend fun insertAffs(l: List<OwnAff>)
+    @Insert suspend fun insertBells(l: List<Bell>)
+    @Insert suspend fun insertPets(l: List<Pet>)
+    @Insert suspend fun insertEntries(l: List<Entry>)
 }
 
 @Database(entities = [Session::class, OwnPractice::class, OwnAff::class, Bottle::class, Bell::class, Pet::class, Entry::class], version = 2, exportSchema = true)

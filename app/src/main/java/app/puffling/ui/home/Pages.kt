@@ -34,8 +34,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import app.puffling.BuildConfig
 import app.puffling.container
 import app.puffling.currentLanguage
+import app.puffling.data.Backup
 import app.puffling.data.OutsideSource
 import app.puffling.data.OwnAff
 import app.puffling.data.Settings
@@ -53,6 +55,7 @@ import app.puffling.domain.count
 import app.puffling.domain.dayOf
 import app.puffling.domain.fmt
 import app.puffling.domain.fmtDay
+import app.puffling.domain.mins
 import app.puffling.domain.nat
 import app.puffling.domain.sp
 import app.puffling.domain.today
@@ -204,6 +207,45 @@ fun SettingsPage(d: Data, nav: Nav) {
     var tab by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(0) }
     val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
         set { it.copy(bells = true) }; if (!ok) c.say(tr("Без уведомлений колокольчик будет звучать, но без кнопки «Три вдоха»", "Without notifications the bell still rings, but without the «Three breaths» button")) }
+    // moving to another phone: everything into one file, and back
+    val saveBackup = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        c.write {
+            val ok = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                runCatching { Backup.write(dao, settings, ctx.contentResolver.openOutputStream(uri, "wt")!!, BuildConfig.VERSION_NAME) }.isSuccess }
+            say(if (ok) tr("Копия сохранена в файл", "The backup is saved to the file") else tr("Не удалось сохранить файл", "Couldn't save the file"))
+        }
+    }
+    var pending by remember { mutableStateOf<Backup.Everything?>(null) }
+    val openBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        c.write {
+            val r = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { Backup.read(ctx.contentResolver.openInputStream(uri)!!) } }
+            if (r.isSuccess) pending = r.getOrNull()
+            else say(if ((r.exceptionOrNull() as? Backup.Unreadable)?.newer == true) tr("Эта копия сделана в более новой версии Puffling. Обновите приложение.", "This backup comes from a newer Puffling. Update the app.")
+                else tr("Это не копия Puffling", "That isn't a Puffling backup"))
+        }
+    }
+    pending?.let { e ->
+        Popup({ pending = null }) {
+            Text(tr("Загрузить копию?", "Load the backup?"), style = T.h2)
+            Text(tr("В файле: ", "In the file: ") + count(e.sessions.size, "практика", "практики", "практик", "practice", "practices") + " (" + mins(e.minutes * 60) + "), " +
+                count(e.entries.size, "запись", "записи", "записей", "diary entry", "diary entries") + tr(" в дневнике, ", ", ") +
+                count(e.pets.count { it.hatched > 0 }, "питомец", "питомца", "питомцев", "pet", "pets") + ".", style = T.body, modifier = Modifier.padding(top = 8.dp))
+            Text(tr("Всё, что сейчас на этом телефоне, заменится тем, что в файле.", "Everything on this phone now will be replaced by what is in the file."),
+                style = T.small.copy(color = C.bad), modifier = Modifier.padding(top = 6.dp))
+            Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Ghost(tr("Отмена", "Cancel"), Modifier.weight(1f)) { pending = null }
+                Btn(tr("Загрузить", "Load"), Modifier.weight(1f)) {
+                    pending = null
+                    c.write {
+                        val ok = runCatching { restore(e) }.isSuccess
+                        say(if (ok) tr("Копия загружена", "The backup is loaded") else tr("Не удалось загрузить файл", "Couldn't load the file"))
+                    }
+                }
+            }
+        }
+    }
     Page(tr("Настройки", "Settings"), { nav.pop() }) {
         app.puffling.ui.components.Hint("settings", d.s.seen, app.puffling.ui.components.Icons.GEAR, tr("Настройки", "Settings"), tr("Четыре вкладки: практика, колокольчик, вид и ещё. Всё сохраняется сразу.", "Four tabs: practice, bell, look and more. Everything saves at once."), Modifier.padding(bottom = 10.dp))
         Row(Modifier.fillMaxWidth().padding(bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -249,8 +291,10 @@ fun SettingsPage(d: Data, nav: Nav) {
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             listOf("bowl" to tr("Чаша", "Bowl"), "bell" to tr("Колокол", "Bell"), "chime" to tr("Тингша", "Tingsha"), "gong" to tr("Гонг", "Gong")).forEach { (k, l) ->
                                 Chip(l, s.bellKind == k) { set { it.copy(bellKind = k) }; Synth.ring(k, s.volume) } } } }
-                    Text(tr("Во время звонка и в беззвучном режиме колокольчик молчит. На HyperOS и других «экономных» прошивках разрешите приложению автозапуск, иначе система может его усыплять.",
-                        "During a call and in silent mode the bell keeps quiet. On HyperOS and other battery-saving systems allow the app to autostart, or the system may put it to sleep."), style = T.tiny, modifier = Modifier.padding(4.dp))
+                    Setting(Icons.PLAY, C.ok, tr("Проверить", "Try it"), tr("Колокольчик позвонит сейчас – так, как будет звонить сам: со звуком и уведомлением", "The bell rings now, the way it will by itself: with its sound and a notification")) {
+                        Btn(tr("Позвонить сейчас", "Ring now"), Modifier.fillMaxWidth()) { Bells.ring(ctx, s, 0) } }
+                    Text(tr("Колокольчик звучит на громкости уведомлений. Во время звонка и в беззвучном режиме он молчит, в режиме вибрации – вибрирует. На HyperOS и других «экономных» прошивках разрешите приложению автозапуск, иначе система может его усыплять.",
+                        "The bell sounds on the notification volume. During a call and in silent mode it keeps quiet, on vibrate it buzzes. On HyperOS and other battery-saving systems allow the app to autostart, or the system may put it to sleep."), style = T.tiny, modifier = Modifier.padding(4.dp))
                 }
             }
             2 -> {
@@ -303,6 +347,15 @@ fun SettingsPage(d: Data, nav: Nav) {
                 }
                 Setting(Icons.SPARK, C.acc, tr("Подсказки", "Hints"), tr("Короткие пояснения на каждом экране", "A short note on every screen")) {
                     Ghost(tr("Показать заново", "Show again"), Modifier.fillMaxWidth(), small = true) { c.write { settings.update { it.copy(seen = emptySet()) } }; c.say(tr("Подсказки покажутся снова", "Hints will show again")) } }
+                Setting(Icons.SAVE, C.acc, tr("Резервная копия", "Backup"), tr("Практики, дневник, питомцы, чайная и настройки одним файлом – чтобы переехать на другой телефон. Файл остаётся у вас.",
+                    "Practices, the diary, the pets, the tea house and the settings in one file, to move to another phone. The file stays with you.")) {
+                    Column {
+                        Btn(tr("Сохранить в файл", "Save to a file"), Modifier.fillMaxWidth(), small = true) {
+                            runCatching { saveBackup.launch("puffling-${java.time.LocalDate.now()}.json") }.onFailure { c.say(tr("На телефоне нет приложения для выбора файлов", "There is no file picker on this phone")) } }
+                        Ghost(tr("Загрузить из файла", "Load from a file"), Modifier.fillMaxWidth().padding(top = 8.dp), small = true) {
+                            runCatching { openBackup.launch(arrayOf("application/json", "application/octet-stream", "text/plain", "*/*")) }.onFailure { c.say(tr("На телефоне нет приложения для выбора файлов", "There is no file picker on this phone")) } }
+                    }
+                }
                 Setting(Icons.HOME, C.ok, tr("О приложении", "About"), tr("Puffling работает без аккаунта. Практики, питомцы и записи хранятся только на телефоне; в интернет уходят лишь координаты города для погоды. Все звуки рождаются прямо в приложении.",
                     "Puffling needs no account. Practices, pets and notes stay on the phone; only the town's coordinates go online, for the weather. Every sound is made right in the app."))
                 Text(tr("Погода – Open-Meteo и MET Norway. Дыхание Вима Хофа устроено как в SwissZen.", "Weather: Open-Meteo and MET Norway. Wim Hof breathing works as in SwissZen."), style = T.tiny, modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp))

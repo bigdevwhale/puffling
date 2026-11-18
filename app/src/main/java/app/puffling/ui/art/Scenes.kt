@@ -143,16 +143,33 @@ fun Flame(modifier: Modifier = Modifier) {
     }
 }
 
-/** Soft rings around the pacer that widen with the breath. */
-fun DrawScope.breathRings(lungs: Float, color: Color) {
+/**
+ * The breath ball's size, as in SwissZen but deeper: 1 on full lungs, under .4 between breaths (lungs .2),
+ * .22 on empty lungs. It has to shrink a lot to be seen breathing at all.
+ */
+const val ORB_EMPTY = .22f
+fun orbScale(lungs: Float) = ORB_EMPTY + (1f - ORB_EMPTY) * lungs.coerceIn(0f, 1f)
+
+/** The pet inside the ball shrinks with it, a little less, so it stays a pet and not a dot. */
+fun petScale(lungs: Float) = .45f + .55f * orbScale(lungs)
+
+/**
+ * The breath ball (SwissZen's orb): a solid lit sphere, its radius [full] of the smaller side on full lungs, shrinking
+ * with the breath; a soft glow round it that fades as it empties.
+ */
+fun DrawScope.breathRings(lungs: Float, color: Color, full: Float = .46f) {
     val c = Offset(size.width / 2, size.height / 2)
-    val r0 = min(size.width, size.height) * .3f
-    for (k in 0 until 3) {
-        val r = r0 * (1f + lungs * .55f) * (1f + k * .14f)
-        drawCircle(color.copy(alpha = max(0f, .22f - k * .07f) * (.4f + .6f * lungs)), r, c)
-    }
-    drawCircle(color.copy(alpha = .5f), r0 * (1f + lungs * .55f), c, style = Stroke(r0 * .02f))
+    val r = min(size.width, size.height) * full * orbScale(lungs)
+    val fill = lungs.coerceIn(0f, 1f)
+    val glow = r * 1.35f
+    drawCircle(Brush.radialGradient(listOf(color.copy(alpha = .35f * (.25f + .75f * fill)), Color.Transparent), c, glow), glow, c)
+    // lit from the upper left, like the orb
+    val light = Offset(c.x - r * .3f, c.y - r * .35f)
+    drawCircle(Brush.radialGradient(listOf(lerpC(color, Color.White, .45f), color, lerpC(color, Color.Black, .45f)), light, r * 1.6f), r, c)
+    drawCircle(Color.White.copy(alpha = .25f), r, c, style = Stroke(min(size.width, size.height) * .005f))
 }
+
+private fun lerpC(a: Color, b: Color, k: Float) = Color(a.red + (b.red - a.red) * k, a.green + (b.green - a.green) * k, a.blue + (b.blue - a.blue) * k, a.alpha)
 
 /** A soft photo-like crop of a creature bitmap, used on cards and the dive. */
 fun DrawScope.sprite(img: androidx.compose.ui.graphics.ImageBitmap, cx: Float, foot: Float, box: Float, alpha: Float = 1f, flip: Boolean = false, filter: androidx.compose.ui.graphics.ColorFilter? = null) {

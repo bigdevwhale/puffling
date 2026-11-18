@@ -82,6 +82,7 @@ object Player {
     private var phaseIdx = 0
     private var phaseStart = 0f
     private var lastBell = 0
+    private var targetRung = false
 
     fun start(ctx: Context, pl: Plan) {
         stop(ctx)
@@ -89,7 +90,7 @@ object Player {
         plan = pl; t = 0f; paused = false; done = false
         phase = null; phaseLeft = 0f; lungs = 0f; cycles = 0; cycleStart = 0f; phaseIdx = -1; phaseStart = 0f
         holds.clear(); wh = if (pl.p.kind == Kind.WIMHOF) WimHofEngine(pl.level ?: WimHofLevel.BEGINNER, pl.rounds, pl.inhale, pl.exhale) else null
-        step = 0; stepT = 0f; notes.clear(); said = 0; card = 0; noted.clear(); notedN = 0; lastBell = 0
+        step = 0; stepT = 0f; notes.clear(); said = 0; card = 0; noted.clear(); notedN = 0; lastBell = 0; targetRung = false
         Synth.warm(); if (pl.cues && pl.p.kind == Kind.BREATH) Thread { pl.p.pattern.forEach { runCatching { Synth.breath(it.ph != Ph.OUT, it.secs) } } }.start()
         amb = Ambience(pl.sound).apply { volume = pl.volume * .55f; start() }
         if (pl.belly) BreathSensor.start(ctx)
@@ -184,7 +185,14 @@ object Player {
                 else -> {}
             }
             if (pl.haptics && ph != WhPhase.IN && ph != WhPhase.OUT) buzz(30)
+            if (ph == WhPhase.HOLD) targetRung = false
             if (ph == WhPhase.DONE) { finish(true); return }
+        }
+        // the hold reached its target: the bell says so, to hold with eyes closed (rings even with breath sounds off)
+        if (e.phase == WhPhase.HOLD && !targetRung && e.t >= e.holdTarget) {
+            targetRung = true
+            Synth.ring(pl.bellKind, pl.volume * .8f)
+            if (pl.haptics) buzz(60)
         }
         lungs = e.lungs(); frame++
     }

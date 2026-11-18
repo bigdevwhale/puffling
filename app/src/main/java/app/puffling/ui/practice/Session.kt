@@ -54,6 +54,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontStyle
@@ -92,6 +93,7 @@ import app.puffling.ui.art.Creature
 import app.puffling.ui.art.Flame
 import app.puffling.ui.art.Pose
 import app.puffling.ui.art.breathRings
+import app.puffling.ui.art.petScale
 import app.puffling.ui.art.deepWater
 import app.puffling.ui.art.loop
 import app.puffling.ui.art.sprite
@@ -358,15 +360,15 @@ private fun timeLine(pl: Plan): String {
     }
 }
 
-/** The pet as the breath: it fills on the in-breath; the rings widen with it. */
+/** The pet as the breath: the ball fills on the in-breath and shrinks on the out-breath (as in SwissZen), the pet with it. */
 @Composable
 private fun Pacer(d: Data, pl: Plan) {
     val lead = d.leader
     val ph = Player.phase
     BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        val s = minOf(maxWidth, maxHeight) * .62f
+        val s = minOf(maxWidth, maxHeight) * .5f
         Canvas(Modifier.fillMaxSize()) { breathRings(Player.lungs, phColor(ph?.ph ?: Ph.IN)) }
-        if (lead != null) Creature(lead.species, maxOf(lead.stage(), Stage.BABY), Pose.PRACTICE, s, lead.shiny, lungs = Player.lungs, glow = false)
+        if (lead != null) Creature(lead.species, maxOf(lead.stage(), Stage.BABY), Pose.PRACTICE, s, lead.shiny, Modifier.graphicsLayer { val k = petScale(Player.lungs); scaleX = k; scaleY = k }, lungs = Player.lungs, glow = false)
         Column(Modifier.align(Alignment.BottomCenter).padding(bottom = 26.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             AnimatedContent(ph?.ph?.label ?: "", transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "ph") { Text(it, style = T.title.copy(color = Color.White, fontSize = 34.sp)) }
             if (!ph?.note.isNullOrBlank()) Text(ph!!.note, style = T.body.copy(color = Color.White.copy(alpha = .7f)))
@@ -429,17 +431,17 @@ private fun WimHof(d: Data, pl: Plan) {
         return
     }
     BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        val s = minOf(maxWidth, maxHeight) * .58f
+        val s = minOf(maxWidth, maxHeight) * .46f
         val ringCol = if (e.phase == WhPhase.REC_HOLD || e.phase == WhPhase.REC_IN) Color(0xFFE0A63A) else Color(0xFF5FA8C9)
         val ring = e.ring()
         Canvas(Modifier.fillMaxSize()) {
-            breathRings(Player.lungs, ringCol)
+            breathRings(Player.lungs, ringCol, full = .40f)
             val r = size.minDimension * .44f
             val tl = Offset(size.width / 2 - r, size.height / 2 - r); val sz = androidx.compose.ui.geometry.Size(2 * r, 2 * r)
             drawArc(Color.White.copy(alpha = .1f), 0f, 360f, false, tl, sz, style = androidx.compose.ui.graphics.drawscope.Stroke(4.dp.toPx()))
             drawArc(ringCol, -90f, 360f * ring, false, tl, sz, style = androidx.compose.ui.graphics.drawscope.Stroke(4.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round))
         }
-        if (lead != null) Creature(lead.species, maxOf(lead.stage(), Stage.BABY), Pose.PRACTICE, s, lead.shiny, lungs = Player.lungs, glow = false)
+        if (lead != null) Creature(lead.species, maxOf(lead.stage(), Stage.BABY), Pose.PRACTICE, s, lead.shiny, Modifier.graphicsLayer { val k = petScale(Player.lungs); scaleX = k; scaleY = k }, lungs = Player.lungs, glow = false)
         Column(Modifier.align(Alignment.TopCenter).padding(top = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             val count = when (e.phase) {
                 WhPhase.INTRO -> "${kotlin.math.ceil(WimHofEngine.INTRO - e.t).toInt().coerceAtLeast(1)}"

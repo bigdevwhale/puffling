@@ -90,16 +90,17 @@ object Synth {
         return ShortArray(d.size) { (d[it] / m * peak * Short.MAX_VALUE).toInt().toShort() }
     }
 
-    private fun track(samples: Int, static: Boolean): AudioTrack = AudioTrack.Builder()
-        .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build())
+    private fun track(samples: Int, static: Boolean, usage: Int = AudioAttributes.USAGE_MEDIA): AudioTrack = AudioTrack.Builder()
+        .setAudioAttributes(AudioAttributes.Builder().setUsage(usage)
+            .setContentType(if (usage == AudioAttributes.USAGE_MEDIA) AudioAttributes.CONTENT_TYPE_MUSIC else AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
         .setAudioFormat(AudioFormat.Builder().setEncoding(AudioFormat.ENCODING_PCM_16BIT).setSampleRate(RATE).setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build())
         .setBufferSizeInBytes(samples * 2).setTransferMode(if (static) AudioTrack.MODE_STATIC else AudioTrack.MODE_STREAM).build()
 
-    /** Plays a short sound once; the track frees itself when done. */
-    fun play(pcm: ShortArray, volume: Float) {
+    /** Plays a short sound once; the track frees itself when done. Practice sounds go on the media volume, [usage] can move them elsewhere. */
+    fun play(pcm: ShortArray, volume: Float, usage: Int = AudioAttributes.USAGE_MEDIA) {
         Thread {
             runCatching {
-                val t = track(pcm.size, true)
+                val t = track(pcm.size, true, usage)
                 t.write(pcm, 0, pcm.size); t.setVolume(volume.coerceIn(0f, 1f)); t.play()
                 Thread.sleep(pcm.size * 1000L / RATE + 200)
                 t.release()
@@ -107,7 +108,9 @@ object Synth {
         }.start()
     }
 
-    fun ring(kind: String, volume: Float) { Thread { runCatching { play(bell(kind), volume) } }.start() }
+    fun ring(kind: String, volume: Float, usage: Int = AudioAttributes.USAGE_MEDIA) { Thread { runCatching { play(bell(kind), volume, usage) } }.start() }
+    /** How long a bell of [kind] sounds, in ms. */
+    fun ringMs(kind: String) = if (kind == "chime") 5000L else if (kind == "gong") 10000L else 8000L
     fun warm() { Thread { runCatching { bell("bowl"); cue('i'); cue('o'); cue('h') } }.start() }
 }
 

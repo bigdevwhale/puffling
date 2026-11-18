@@ -6,6 +6,27 @@ line "<!-- tg", then 2-4 short lines in Russian for users (what is new, what is 
 then close it like any HTML comment. The release notes carry it, and the chat bot posts those lines.
 -->
 
+## [1.2.0] - 2026-11-18
+
+### Added
+- **A bell when the hold reaches its target** in Wim Hof practices, to hold with eyes closed. It rings even with breath sounds off. (#2)
+- **The breath ball breathes as in SwissZen:** a solid lit sphere that fills the ring on full lungs and shrinks to about a third between breaths, smaller still on empty lungs. The pet breathes inside it, growing and shrinking with it.
+- **«Ring now»** in the bell settings, to hear the bell and see its notification at once.
+- **A backup in one file:** Settings → More → Backup saves the practices, the diary, own practices and affirmations, the bottles, the pets, the tea house and the settings to a file, and loads them back on another phone. Before loading, the app says what is in the file; loading replaces what is on the phone.
+- **Lingvale can move Puffling to another phone:** the village may ask for the same backup file and bring it back, together with the other apps of the family. It asks you before it loads anything.
+
+### Fixed
+- **The mindfulness bell was never heard.** It sounded on the media volume, which many keep at zero, and its notification is silent. Now it rings on the notification volume, and buzzes where that volume is down. After an update of the app or a change of the clock the next bell is set again, and the bell is no longer cut short. (#4)
+- **The rock garden hung in the air,** and the bonsai and the candles with it: they now stand on the window sill. (#3)
+
+<!-- tg
+В настройках появилась резервная копия: практики, дневник, питомцы и чайная сохраняются в один файл и загружаются на другом телефоне.
+Lingvale теперь может перенести Puffling на новый телефон вместе с остальными приложениями семейства.
+Колокольчик теперь звучит на громкости уведомлений, а не медиа – раньше его часто было просто не слышно. В настройках колокольчика появилась кнопка «Позвонить сейчас» для проверки.
+В Вим Хофе звучит сигнал, когда задержка дошла до цели. Шар дыхания сжимается и растёт, как в SwissZen.
+Сад камней, бонсай и свечи больше не висят в воздухе, а стоят на подоконнике.
+-->
+
 ## [1.1.1] - 2026-11-16
 
 ### Fixed

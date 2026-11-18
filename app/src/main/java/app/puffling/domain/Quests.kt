@@ -38,7 +38,7 @@ object Quests {
     fun deal(monday: Long): List<String> = all.sortedBy { hash("q$monday${it.id}") }.take(3).map { it.id }
 }
 
-/** A thing for the tea house. Wall things hang ([y] is their centre), floor things stand ([y] is their foot). */
+/** A thing for the tea house. Wall things hang ([y] is their centre), floor things stand ([y] is their foot): on the floor or on the window sill, whose top is at .695. */
 data class Item(val id: String, val ru: String, val en: String, val price: Int, val x: Float, val y: Float, val w: Float, val wall: Boolean = false) {
     val name get() = tr(ru, en)
 }
@@ -49,14 +49,14 @@ object Shop {
         Item("bowl", "Поющая чаша", "Singing bowl", 30, .7f, .95f, .1f),
         Item("incense", "Благовония", "Incense", 25, .28f, .92f, .07f),
         Item("plant", "Папоротник", "Fern", 35, .07f, .96f, .14f),
-        Item("bonsai", "Бонсай", "Bonsai", 60, .5f, .62f, .13f),
+        Item("bonsai", "Бонсай", "Bonsai", 60, .5f, .695f, .13f),
         Item("lantern", "Бумажный фонарь", "Paper lantern", 50, .93f, .95f, .1f),
         Item("chime", "Музыка ветра", "Wind chime", 40, .2f, .2f, .07f, wall = true),
         Item("scroll", "Свиток с волной", "Wave scroll", 55, .82f, .38f, .11f, wall = true),
         Item("tea", "Чайный столик", "Tea table", 70, .3f, .99f, .16f),
-        Item("candles", "Свечи", "Candles", 30, .64f, .62f, .07f),
+        Item("candles", "Свечи", "Candles", 30, .64f, .695f, .07f),
         Item("shelf", "Полка с ракушками", "Shell shelf", 45, .16f, .45f, .14f, wall = true),
-        Item("garden", "Сад камней", "Rock garden", 65, .36f, .62f, .12f),
+        Item("garden", "Сад камней", "Rock garden", 65, .36f, .695f, .12f),
         Item("fishbowl", "Аквариум с рыбкой", "Fishbowl", 80, .83f, .7f, .1f),
         Item("gong", "Гонг", "Gong", 120, .84f, .96f, .16f),
         Item("telescope", "Подзорная труба", "Telescope", 100, .14f, .97f, .12f),
