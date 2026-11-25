@@ -199,12 +199,17 @@ private fun LinkRow(icon: Icons, tint: Color, title: String, sub: String?, url: 
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-fun SettingsPage(d: Data, nav: Nav) {
+fun SettingsPage(start: Int, d: Data, nav: Nav) {
     val ctx = LocalContext.current
     val c = ctx.container
     val s = d.s
     fun set(f: (Settings) -> Settings) = c.write { settings.update(f); Bells.schedule(app, settings.now()) }
-    var tab by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(0) }
+    var tab by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(start) }
+    // back from the system pages: see what was allowed there, and set the next bell again on the minute if it may
+    var back by remember { mutableStateOf(0) }
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) { back++; c.write { Bells.schedule(app, settings.now()) }; onPauseOrDispose { } }
+    val onTime = remember(back) { Bells.exact(ctx) }
+    val awake = remember(back) { Bells.unrestricted(ctx) }
     val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
         set { it.copy(bells = true) }; if (!ok) c.say(tr("Без уведомлений колокольчик будет звучать, но без кнопки «Три вдоха»", "Without notifications the bell still rings, but without the «Three breaths» button")) }
     // moving to another phone: everything into one file, and back
@@ -293,8 +298,18 @@ fun SettingsPage(d: Data, nav: Nav) {
                                 Chip(l, s.bellKind == k) { set { it.copy(bellKind = k) }; Synth.ring(k, s.volume) } } } }
                     Setting(Icons.PLAY, C.ok, tr("Проверить", "Try it"), tr("Колокольчик позвонит сейчас – так, как будет звонить сам: со звуком и уведомлением", "The bell rings now, the way it will by itself: with its sound and a notification")) {
                         Btn(tr("Позвонить сейчас", "Ring now"), Modifier.fillMaxWidth()) { Bells.ring(ctx, s, 0) } }
-                    Text(tr("Колокольчик звучит на громкости уведомлений. Во время звонка и в беззвучном режиме он молчит, в режиме вибрации – вибрирует. На HyperOS и других «экономных» прошивках разрешите приложению автозапуск, иначе система может его усыплять.",
-                        "The bell sounds on the notification volume. During a call and in silent mode it keeps quiet, on vibrate it buzzes. On HyperOS and other battery-saving systems allow the app to autostart, or the system may put it to sleep."), style = T.tiny, modifier = Modifier.padding(4.dp))
+                    if (!onTime) Setting(Icons.CLOCK, C.bad, tr("Звонить точно вовремя", "Ring on time"),
+                        tr("Сейчас Android считает колокольчик подсказкой: может позвонить с опозданием, дождаться, пока вы возьмёте телефон, а то и позвонить раз в день. Разрешите приложению «будильники и напоминания».",
+                            "For now Android takes the bell as a hint: it may ring late, wait till you pick the phone up, or ring once a day. Allow the app «alarms & reminders».")) {
+                        Btn(tr("Разрешить", "Allow"), Modifier.fillMaxWidth()) { Bells.askExact(ctx) } }
+                    if (!awake) Setting(Icons.BOLT, C.gold, tr("Не усыплять приложение", "Don't put the app to sleep"),
+                        if (android.os.Build.MANUFACTURER.equals("Xiaomi", true)) tr("Экономия батареи может придержать колокольчик. На открывшейся странице включите «Автозапуск», а в «Контроле активности» выберите «Нет ограничений».",
+                            "The battery saver may hold the bell back. On the page that opens, turn on «Autostart» and choose «No restrictions» under the battery saver.")
+                        else tr("Экономия батареи может придержать колокольчик. Найдите Puffling в списке и выберите «Не экономить».",
+                            "The battery saver may hold the bell back. Find Puffling in the list and choose «Don't optimise».")) {
+                        Btn(tr("Открыть настройки", "Open the settings"), Modifier.fillMaxWidth()) { Bells.askBattery(ctx) } }
+                    Text(tr("Колокольчик звучит на громкости уведомлений. Во время звонка и в беззвучном режиме он молчит, в режиме вибрации – вибрирует.",
+                        "The bell sounds on the notification volume. During a call and in silent mode it keeps quiet, on vibrate it buzzes."), style = T.tiny, modifier = Modifier.padding(4.dp))
                 }
             }
             2 -> {

@@ -6,6 +6,16 @@ line "<!-- tg", then 2-4 short lines in Russian for users (what is new, what is 
 then close it like any HTML comment. The release notes carry it, and the chat bot posts those lines.
 -->
 
+## [1.2.1] - 2026-11-25
+
+### Fixed
+- **The mindfulness bell rang once a day, or late, or not at all,** while the app kept naming the next time. The app never asked for exact alarms, so Android took each bell as a hint: it could move it by up to three quarters of the wait, hold it while the phone lay still, and give an app it thinks is rarely used one such alarm a day. Now the bell settings ask to allow «alarms & reminders» and to keep the battery saver off the app (on Xiaomi: autostart and «No restrictions»). Until that is done, the bell sheet says the bell may come late, and opens the bell settings straight away. (#4)
+
+<!-- tg
+Колокольчик звонил раз в день или вовсе молчал, хотя приложение исправно показывало время следующего звонка. Android считал его необязательным и откладывал.
+Теперь в настройках колокольчика можно разрешить «будильники и напоминания» и снять экономию батареи, и он будет звонить вовремя. Пока это не сделано, приложение честно предупреждает, что звонок может опоздать.
+-->
+
 ## [1.2.0] - 2026-11-18
 
 ### Added

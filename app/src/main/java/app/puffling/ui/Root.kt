@@ -87,7 +87,7 @@ sealed class Screen {
     data class SessionView(val id: Long) : Screen()
     data class PetInfo(val id: Long) : Screen()
     data object Shop : Screen()
-    data object Settings : Screen()
+    data class Settings(val tab: Int = 0) : Screen()
     data class OwnEdit(val id: Long, val kind: String = "b") : Screen()
     data object Affirmations : Screen()
     data class Course(val id: String) : Screen()
@@ -151,7 +151,7 @@ fun Root(s: Settings) {
         val o = Start.open
         when {
             o == null -> {}
-            o == "shop" -> nav.push(Screen.Shop); o == "settings" -> nav.push(Screen.Settings); o == "aquarium" -> nav.push(Screen.Aquarium)
+            o == "shop" -> nav.push(Screen.Shop); o == "settings" -> nav.push(Screen.Settings()); o == "aquarium" -> nav.push(Screen.Aquarium)
             o == "affirmations" -> nav.push(Screen.Affirmations); o == "bolt" -> nav.push(Screen.Bolt)
             o == "quick" -> nav.quick = true
             o == "summary" -> Start.diaryTab = 1
@@ -186,7 +186,7 @@ fun Root(s: Settings) {
                 is Screen.SessionView -> SessionPage(scr.id, data, nav)
                 is Screen.PetInfo -> PetPage(scr.id, data, nav)
                 Screen.Shop -> ShopPage(data, nav)
-                Screen.Settings -> SettingsPage(data, nav)
+                is Screen.Settings -> SettingsPage(scr.tab, data, nav)
                 is Screen.OwnEdit -> OwnPage(scr.id, scr.kind, data, nav)
                 Screen.Affirmations -> AffirmationsPage(data, nav)
                 is Screen.Course -> CoursePage(scr.id, data, nav)

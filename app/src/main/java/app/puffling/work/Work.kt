@@ -17,8 +17,10 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.media.AudioAttributes
 import android.media.AudioManager
+import android.net.Uri
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.os.VibrationEffect
 import android.os.Vibrator
 import androidx.compose.runtime.getValue
@@ -146,12 +148,39 @@ object Bells {
 
     private fun pending(ctx: Context) = PendingIntent.getBroadcast(ctx, 3, Intent(ctx, BellReceiver::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
 
+    /**
+     * Whether the bell may ring on the minute. Without it Android treats the bell as a hint: it may come up to
+     * three quarters of the wait late, waits for the phone to wake while it lies still, and an app the system
+     * thinks is rarely used gets one such alarm a day.
+     */
+    fun exact(ctx: Context) = Build.VERSION.SDK_INT < 31 || ctx.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
+
+    /** Whether the battery saver leaves the app alone; otherwise it may hold the bell back or drop it. */
+    fun unrestricted(ctx: Context) = ctx.getSystemService(PowerManager::class.java)?.isIgnoringBatteryOptimizations(ctx.packageName) == true
+
+    /** Opens the system page where the bell is allowed to ring on time. */
+    fun askExact(ctx: Context) {
+        if (Build.VERSION.SDK_INT < 31) return
+        open(ctx, Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:${ctx.packageName}")))
+    }
+
+    /**
+     * Opens where the battery saver lets the app be. On Xiaomi that is the app's own page (autostart and
+     * «No restrictions» live there); elsewhere the list of apps the battery optimisation leaves alone.
+     */
+    fun askBattery(ctx: Context) {
+        val details = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${ctx.packageName}"))
+        if (Build.MANUFACTURER.equals("Xiaomi", true) || !open(ctx, Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))) open(ctx, details)
+    }
+
+    private fun open(ctx: Context, i: Intent) = runCatching { ctx.startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess
+
     fun schedule(ctx: Context, s: Settings) {
         val am = ctx.getSystemService(AlarmManager::class.java)
         am.cancel(pending(ctx))
         val at = next(s) ?: return
         runCatching {
-            if (Build.VERSION.SDK_INT >= 31 && !am.canScheduleExactAlarms()) am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending(ctx))
+            if (!exact(ctx)) am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending(ctx))
             else am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending(ctx))
         }
     }
@@ -211,10 +240,14 @@ class BellReceiver : BroadcastReceiver() {
     }
 }
 
-/** After a restart, an update of the app or a change of the clock the next bell is set again: each of them drops it. */
+/**
+ * After a restart, an update of the app or a change of the clock the next bell is set again: each of them drops it.
+ * And once the bell may ring on time, the next one is set again on the minute.
+ */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action !in setOf(Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED, Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED)) return
+        if (intent.action !in setOf(Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED, Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED,
+                AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED)) return
         val res = goAsync()
         CoroutineScope(Dispatchers.Default).launch { runCatching { Bells.schedule(context, context.container.settings.now()) }; res.finish() }
     }

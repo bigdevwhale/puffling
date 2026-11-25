@@ -96,7 +96,7 @@ fun HomeScreen(d: Data, nav: Nav) {
             Row(Modifier.clip(RoundedCornerShape(50)).background(C.goldSoft).clickable { nav.push(Screen.Shop) }.padding(horizontal = 12.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.SHELL, C.gold, 18.dp); Spacer(Modifier.width(6.dp)); Text(fmt(d.s.shells), style = T.numS.copy(color = C.gold))
             }
-            Box(Modifier.size(44.dp).clip(CircleShape).clickable { nav.push(Screen.Settings) }, contentAlignment = Alignment.Center) { Icon(Icons.GEAR, C.mute, 22.dp) }
+            Box(Modifier.size(44.dp).clip(CircleShape).clickable { nav.push(Screen.Settings()) }, contentAlignment = Alignment.Center) { Icon(Icons.GEAR, C.mute, 22.dp) }
         }
         app.puffling.ui.components.Hint("home", d.s.seen, app.puffling.ui.components.Icons.WIND, tr("Ваша чайная на скале", "Your tea house on the cliff"), tr("Круглая кнопка внизу – начать практику. Питомцы едят спокойствие и растут ночью, а море в окне поднимается к приливу с каждой минутой за неделю.", "The round button below starts a practice. Pets eat calm and grow at night, and the sea rises towards high tide with every minute this week."), Modifier.padding(bottom = 10.dp))
         // the scene, with the leader's name and growth over its floor
@@ -235,16 +235,21 @@ private fun ColumnScope.BellSheet(d: Data, nav: Nav, close: () -> Unit) {
     Text(tr("Колокольчик", "The bell"), style = T.h2)
     if (!d.s.bells) {
         Text(tr("Несколько раз в день тихо звонит: остановитесь на три вдоха, и на тропе зажжётся фонарик.", "A few times a day it rings softly: stop for three breaths and a lantern lights up on the path."), style = T.body, modifier = Modifier.padding(top = 6.dp))
-        Btn(tr("Включить", "Turn on"), Modifier.fillMaxWidth().padding(top = 14.dp)) { close(); nav.push(Screen.Settings) }
+        Btn(tr("Включить", "Turn on"), Modifier.fillMaxWidth().padding(top = 14.dp)) { close(); nav.push(Screen.Settings(1)) }
         return
     }
     val next = remember(d.s, d.bells.size) { app.puffling.work.Bells.next(d.s) }
+    // the time is only the plan: without the leave to ring on time or with the battery saver on, Android may move it or drop it
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val sure = remember(d.s, d.bells.size) { app.puffling.work.Bells.exact(ctx) && app.puffling.work.Bells.unrestricted(ctx) }
     Text(next?.let { tr("Следующий – около ", "Next – around ") + java.time.format.DateTimeFormatter.ofPattern("H:mm").format(java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault())) } ?: "", style = T.small, modifier = Modifier.padding(top = 4.dp))
+    if (next != null && !sure) Text(tr("Android может звонить с опозданием или пропускать звонки. Как исправить →", "Android may ring it late or skip it. How to fix →"),
+        style = T.small.copy(color = C.bad), modifier = Modifier.padding(top = 2.dp).clickable { close(); nav.push(Screen.Settings(1)) })
     if (d.bellsToday.isEmpty()) Text(tr("Сегодня ещё не звонил.", "It hasn't rung today yet."), style = T.body, modifier = Modifier.padding(top = 12.dp))
     else Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) { d.bellsToday.sortedBy { it.at }.forEach { Lantern(it.answered > 0, 30.dp) } }
     Text(tr("Горящий фонарик – колокольчик, на который вы ответили.", "A lit lantern is a bell you answered."), style = T.tiny, modifier = Modifier.padding(top = 10.dp))
     Btn(tr("Три вдоха сейчас", "Three breaths now"), Modifier.fillMaxWidth().padding(top = 14.dp)) { close(); nav.push(Screen.Begin("bell")) }
-    Text(tr("Настроить", "Settings"), style = T.smallB.copy(color = C.acc), modifier = Modifier.padding(top = 12.dp).clickable { close(); nav.push(Screen.Settings) })
+    Text(tr("Настроить", "Settings"), style = T.smallB.copy(color = C.acc), modifier = Modifier.padding(top = 12.dp).clickable { close(); nav.push(Screen.Settings(1)) })
 }
 
 @Composable
